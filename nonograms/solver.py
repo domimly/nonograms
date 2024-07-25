@@ -1,11 +1,10 @@
-from itertools import combinations_with_replacement
-
+from itertools import combinations
 
 ROW_CLUES = [[1], [3], [1, 1], [3], [1]]
-COL_CLUES = [(1), (3), (1), (3), (1)]
+COL_CLUES = [[1], [3], [1], [3], [1]]
 
 # ROW_CLUES = [[1], [3], [1, 2], [3], [1]]
-# COL_CLUES = [(1), (3), (1), (3), (1), (1)]
+# COL_CLUES = [[1], [3], [1], [3], [1]]
 
 
 class Nonogram:
@@ -14,53 +13,60 @@ class Nonogram:
         self.col_clues = col_clues
         self.width = len(self.col_clues)
         self.height = len(self.row_clues)
+        self.rows_possibilities = None
+        self.cols_possibilities = None
         self.board = [
             [None for _ in range(self.width)] for _ in range(self.height)
         ]
+        self.solved = False
 
+    def possibilities(self, clues, line_length):
+        possibiliies = []
+        for line_clues in clues:
+            line_possibilities = (
+                self.line_possibilities(line_clues, line_length)
+            )
+            possibiliies.append(line_possibilities)
+        return possibiliies
 
-class Solver:
-    def __init__(self, board) -> None:
-        self.board = board
+    def line_possibilities(self, line_clues, line_length):
+        line_possibilities = []
+        groups_n = len(line_clues)
+        empty_squares = line_length - sum(line_clues) - (groups_n - 1)
 
-    def row_permutations(self, row):
-        # calculate number of movable (empty) white squares
-        groups = self.board.row_clues[row]
-        black_squares = sum(self.board.row_clues[row])
-        white_squares = self.board.width - black_squares
-        empty_squares = white_squares - (len(groups) - 1)
+        groups_placement_possibilities = (
+            combinations(range(groups_n + empty_squares), groups_n)
+        )
 
-        # ensure that there is at least 1 white square
-        # between each group of black squares
-        row_contents = []
-        for group in groups[:-1]:
-            row_contents.append([1] * group + [0])
-        row_contents.append([1] * groups[-1])
+        for possibility in groups_placement_possibilities:
+            line = [0] * line_length
+            groups_separator_counter = 0
+            for index, group_length in zip(possibility, line_clues):
+                group_pos = index + groups_separator_counter
+                for i in range(group_length):
+                    line[group_pos + i] = 1
+                    groups_separator_counter += 1
 
-        # generate permutations of empty white squares
-        positions = len(groups) + 1
-        row_permutations = []
-        for combo in combinations_with_replacement(
-            range(positions), empty_squares
-        ):
-            white_count = [0] * positions
-            for pos in combo:
-                white_count[pos] += 1
-            valid_row = []
-            for i in range(positions):
-                if i > 0:
-                    valid_row += row_contents[i - 1]
-                valid_row.extend([0] * white_count[i])
-            row_permutations.append(valid_row)
+            line_possibilities.append(line)
+        return line_possibilities
 
-        return row_permutations
+    def place_square(self, line_combinations, index):
+        first_value = line_combinations[0][index]
+        for combo in line_combinations:
+            if combo[index] != first_value:
+                return None
+        return first_value
 
     def solve(self):
-        pass
+        self.rows_possibilities = self.possibilities(
+            self.row_clues, self.width
+        )
+        self.cols_possibilities = self.possibilities(
+            self.col_clues, self.height
+        )
 
 
 nonogram = Nonogram(ROW_CLUES, COL_CLUES)
-solver = Solver(nonogram)
-perms = solver.row_permutations(2)
-for perm in list(perms):
-    print(perm)
+rows = nonogram.possibilities(nonogram.row_clues, nonogram.width)
+for p in rows[2]:
+    print(p)
